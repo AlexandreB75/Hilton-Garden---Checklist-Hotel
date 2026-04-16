@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { db } from "./firebase";
+import { ref, onValue, set } from "firebase/database";
+
 const FLOORS=[9,10,11,12,13,14],N=27;
 const SYS=[
 {id:"h",l:"HIDRAULICA",c:"#3B82F6",icon:"💧",items:["Agua quente","Agua fria","Esgoto pia","Esgoto vaso","Ralo","Chuveiro"]},
@@ -8,7 +11,8 @@ const SYS=[
 {id:"r",l:"RENOV. AR",c:"#A855F7",icon:"🌬️",items:["Exaustao","Renovacao","Ponto 1","Ponto 2","Ponto 3"]},
 {id:"g",l:"GESSO",c:"#94a3b8",icon:"🔲",items:["Perfilados","Nivelamento","Placas","Luminarias","Difusores","Sprinklers","Detectores","Juntas","Acabamento"]},
 ];
-const TOTAL=SYS.reduce((a,s)=>a+s.items.length,0),KEY="hilton_sparse_v1";
+const TOTAL=SYS.reduce((a,s)=>a+s.items.length,0);
+const DB_PATH="checklist/hilton_v1";
 const chk=(data,f,u,k)=>!!(data[f]?.[u]?.[k]);
 const unitDone=(data,f,u)=>SYS.reduce((a,s)=>a+s.items.filter((_,i)=>chk(data,f,u,s.id+i)).length,0);
 const sysDone=(data,f,u,sid)=>{const s=SYS.find(x=>x.id===sid);return s?s.items.filter((_,i)=>chk(data,f,u,s.id+i)).length:0;};
@@ -16,11 +20,15 @@ const floorDone=(data,f)=>{let d=0;for(let u=1;u<=N;u++)d+=unitDone(data,f,u);re
 const pct=(done,tot)=>tot?Math.round(done/tot*100):0;
 export default function App(){
 const[data,setData]=useState({}),[floor,setFloor]=useState(9),[uid,setUid]=useState(1);
-const[sid,setSid]=useState("h"),[tab,setTab]=useState("u"),[st,setSt]=useState("…"),[stc,setStc]=useState("#888");
+const[sid,setSid]=useState("h"),[tab,setTab]=useState("u"),[st,setSt]=useState("conectando..."),[stc,setStc]=useState("#888");
 const tm=useRef(null);
-const load=useCallback(()=>{try{const v=localStorage.getItem(KEY);if(v)setData(JSON.parse(v));setSt("ok");setStc("#22c55e");}catch{setSt("pronto");setStc("#555");}},[]);
-useEffect(()=>{load();const t=setInterval(load,20000);return()=>clearInterval(t);},[load]);
-const save=useCallback((d)=>{setSt("salvando");setStc("#f59e0b");clearTimeout(tm.current);tm.current=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(d));setSt("salvo");setStc("#22c55e");}catch{setSt("erro");setStc("#ef4444");}},700);},[]);
+useEffect(()=>{
+const dbRef=ref(db,DB_PATH);
+const unsub=onValue(dbRef,(snap)=>{setData(snap.val()||{});setSt("sync");setStc("#22c55e");}
+,()=>{setSt("erro");setStc("#ef4444");});
+return()=>unsub();
+},[]);
+const save=useCallback((d)=>{setSt("salvando");setStc("#f59e0b");clearTimeout(tm.current);tm.current=setTimeout(()=>{set(ref(db,DB_PATH),d).then(()=>{setSt("salvo");setStc("#22c55e");}).catch(()=>{setSt("erro");setStc("#ef4444");});},500);},[]);
 const tog=(k)=>setData(p=>{const fObj=p[floor]||{},uObj=fObj[uid]||{},wasOn=!!uObj[k];let newU;if(wasOn){newU={...uObj};delete newU[k];}else{newU={...uObj,[k]:true};}const n={...p,[floor]:{...fObj,[uid]:newU}};save(n);return n;});
 const rp=pct(unitDone(data,floor,uid),TOTAL),fp=pct(floorDone(data,floor),N*TOTAL);
 const gp=pct(FLOORS.reduce((a,f)=>a+floorDone(data,f),0),FLOORS.length*N*TOTAL),ac=SYS.find(s=>s.id===sid);
@@ -33,7 +41,6 @@ return(<div style={{minHeight:"100vh",background:"#08080f",color:"#ddd",fontFami
 <div style={{fontSize:8,marginTop:3,display:"flex",alignItems:"center",gap:5}}>
 <div style={{width:5,height:5,borderRadius:"50%",background:stc}}/>
 <span style={{color:stc}}>{st}</span>
-<button onClick={load} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:12,padding:0,marginLeft:4}}>↻</button>
 </div></div>
 <div style={{background:"#111125",border:"1px solid #2a2a4a",borderRadius:8,padding:"6px 12px",textAlign:"center"}}>
 <div style={{fontSize:24,fontWeight:900,color:gp===100?"#22c55e":"#f59e0b",lineHeight:1}}>{gp}%</div>
@@ -60,7 +67,7 @@ return(<div style={{minHeight:"100vh",background:"#08080f",color:"#ddd",fontFami
 <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:16}}>{ac.icon}</span><span style={{fontSize:10,fontWeight:700,color:ac.c,letterSpacing:2}}>{ac.l}</span></div>
 <span style={{fontSize:18,fontWeight:800,color:pct(sysDone(data,floor,uid,ac.id),ac.items.length)===100?"#22c55e":ac.c}}>{pct(sysDone(data,floor,uid,ac.id),ac.items.length)}%</span></div>
 {ac.items.map((lbl,i)=>{const k=ac.id+i,on=chk(data,floor,uid,k);return(<div key={k} onClick={()=>tog(k)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderBottom:i<ac.items.length-1?`1px solid ${ac.c}12`:"none",cursor:"pointer",background:on?`${ac.c}0a`:"transparent"}}>
-<div style={{width:20,height:20,borderRadius:5,border:"2px solid",borderColor:on?ac.c:"#2a2a4a",background:on?ac.c:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{on&&<span style={{fontSize:10,color:"#fff",fontWeight:900}}>✓</span>}</div>
+<div style={{width:20,height:20,borderRadius:5,border:"2px solid",borderColor:on?ac.c:"#2a2a4a",background:on?ac.c:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{on&&<span style={{fontSize:10,color:"#fff",fontWeight:900}}>v</span>}</div>
 <span style={{fontSize:13,color:on?"#555":"#ccc",textDecoration:on?"line-through":"none"}}>{lbl}</span></div>);})}
 </div>)}</div>)}
 {tab==="o"&&(<div style={{padding:"16px 12px"}}>
