@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hilton — Relatório de Obra Diária</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Share+Tech+Mono&display=swap');
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef } = React;
+
+const STYLE = `
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --gold: #C9A96E; --gold-dim: #8B6E42;
+    --bg: #080808; --surface: #0F0F0F; --surface2: #161616; --surface3: #1E1E1E;
+    --border: #2A2A2A; --text: #E8E0D0; --text-dim: #6B6055;
+    --green: #4ADE80; --red: #F87171; --blue: #60A5FA; --yellow: #FCD34D;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Share Tech Mono', monospace; }
+  .app { min-height: 100vh; display: flex; flex-direction: column; }
+  .header {
+    border-bottom: 1px solid var(--border); padding: 0 32px; height: 56px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface); position: sticky; top: 0; z-index: 100;
+  }
+  .header-brand { display: flex; align-items: center; gap: 12px; }
+  .header-logo { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 600; color: var(--gold); letter-spacing: 3px; }
+  .header-sep { color: var(--border); font-size: 18px; }
+  .header-sub { font-size: 10px; color: var(--text-dim); letter-spacing: 3px; text-transform: uppercase; }
+  .header-actions { display: flex; align-items: center; gap: 8px; }
+  .main { flex: 1; padding: 32px; max-width: 1100px; width: 100%; margin: 0 auto; }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 2px; overflow: hidden; }
+  .panel-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .panel-title { font-size: 9px; letter-spacing: 4px; text-transform: uppercase; color: var(--gold); }
+  .panel-body { padding: 24px; }
+  .btn { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; padding: 8px 18px; border-radius: 1px; cursor: pointer; border: 1px solid; transition: all 0.2s; }
+  .btn-gold { background: var(--gold); color: #080808; border-color: var(--gold); }
+  .btn-gold:hover { background: #D4B07A; }
+  .btn-outline { background: transparent; color: var(--text-dim); border-color: var(--border); }
+  .btn-outline:hover { color: var(--text); border-color: var(--text-dim); }
+  .btn-danger { background: transparent; color: var(--red); border-color: #F8717133; }
+  .btn-danger:hover { border-color: var(--red); background: #F8717111; }
+  .btn-sm { padding: 5px 12px; font-size: 9px; }
+  .btn-icon { background: none; border: none; cursor: pointer; color: var(--text-dim); font-size: 14px; padding: 4px 6px; transition: color 0.2s; line-height: 1; }
+  .btn-icon:hover { color: var(--text); }
+  .field { margin-bottom: 20px; }
+  .label { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; display: block; }
+  .input, .select, .textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-family: 'Share Tech Mono', monospace; font-size: 12px; padding: 10px 14px; border-radius: 1px; outline: none; transition: border-color 0.2s; }
+  .input:focus, .select:focus, .textarea:focus { border-color: var(--gold-dim); }
+  .textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
+  .select option { background: var(--surface2); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .list-item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .list-item .input { flex: 1; }
+  .add-btn { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 2px; background: none; border: 1px dashed var(--border); color: var(--text-dim); padding: 9px 16px; cursor: pointer; width: 100%; text-align: center; transition: all 0.2s; margin-top: 4px; border-radius: 1px; }
+  .add-btn:hover { border-color: var(--gold-dim); color: var(--gold); }
+  .section-divider { font-size: 9px; letter-spacing: 4px; text-transform: uppercase; color: var(--gold); margin: 28px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .terceiro-row { background: var(--surface2); border: 1px solid var(--border); padding: 16px; margin-bottom: 8px; border-radius: 1px; }
+  .terceiro-row .grid-3 { margin-bottom: 10px; }
+  .terceiro-row .field { margin-bottom: 0; }
+  .foto-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin-bottom: 8px; }
+  .foto-item { position: relative; aspect-ratio: 1; }
+  .foto-item img { width: 100%; height: 100%; object-fit: cover; border: 1px solid var(--border); border-radius: 1px; }
+  .foto-remove { position: absolute; top: 4px; right: 4px; background: #00000099; border: none; color: var(--red); width: 22px; height: 22px; border-radius: 50%; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; }
+  .foto-upload-btn { aspect-ratio: 1; background: var(--surface2); border: 1px dashed var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-dim); font-size: 28px; transition: all 0.2s; border-radius: 1px; }
+  .foto-upload-btn:hover { border-color: var(--gold-dim); color: var(--gold); }
+  .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-bottom: 24px; }
+  .stat-item { background: var(--surface); border: 1px solid var(--border); padding: 18px 20px; border-radius: 1px; }
+  .stat-value { font-family: 'Cormorant Garamond', serif; font-size: 32px; color: var(--gold); line-height: 1; margin-bottom: 4px; }
+  .stat-label { font-size: 9px; letter-spacing: 3px; color: var(--text-dim); text-transform: uppercase; }
+  .reports-list { display: flex; flex-direction: column; }
+  .report-row { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid var(--border); border-left: 2px solid transparent; }
+  .report-row:last-child { border-bottom: none; }
+  .report-row:hover { background: var(--surface2); border-left-color: var(--gold-dim); }
+  .report-row-info { display: flex; flex-direction: column; gap: 5px; }
+  .report-row-name { font-size: 13px; color: var(--text); }
+  .report-row-meta { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; }
+  .report-row-right { display: flex; align-items: center; gap: 12px; }
+  .badge { font-size: 9px; letter-spacing: 2px; padding: 3px 9px; border-radius: 1px; text-transform: uppercase; }
+  .badge-sol { background: #FCD34D18; color: #FCD34D; border: 1px solid #FCD34D33; }
+  .badge-nublado { background: #94A3B818; color: #94A3B8; border: 1px solid #94A3B833; }
+  .badge-chuva { background: #60A5FA18; color: #60A5FA; border: 1px solid #60A5FA33; }
+  .badge-garoa { background: #60A5FA18; color: #60A5FA; border: 1px solid #60A5FA33; }
+  .badge-parcial { background: #FB923C18; color: #FB923C; border: 1px solid #FB923C33; }
+  .empty-state { text-align: center; padding: 64px 20px; color: var(--text-dim); }
+  .empty-icon { font-size: 44px; margin-bottom: 16px; opacity: 0.25; }
+  .empty-text { font-size: 11px; letter-spacing: 2px; margin-bottom: 24px; }
+  .form-actions { display: flex; gap: 12px; justify-content: flex-end; padding-top: 24px; margin-top: 8px; border-top: 1px solid var(--border); }
+  .preview-toolbar { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 20px; }
+  .print-doc { background: #fff; color: #222; font-family: 'Times New Roman', Times, serif; max-width: 760px; margin: 0 auto; padding: 48px 52px; border: 1px solid #ddd; box-shadow: 0 2px 20px rgba(0,0,0,.3); }
+  .print-doc-header { text-align: center; margin-bottom: 36px; }
+  .print-doc-obra { font-size: 22px; font-weight: bold; color: #111; margin-bottom: 4px; }
+  .print-doc-titulo { font-size: 16px; color: #444; margin-bottom: 2px; }
+  .print-doc-hr { border: none; border-top: 1px solid #ccc; margin: 20px 0; }
+  .print-field { margin-bottom: 14px; font-size: 14px; line-height: 1.6; }
+  .print-field b { color: #111; }
+  .print-section { margin-bottom: 22px; }
+  .print-section-title { font-size: 14px; font-weight: bold; color: #111; border-bottom: 1px solid #bbb; padding-bottom: 4px; margin-bottom: 10px; }
+  .print-list { margin-left: 22px; }
+  .print-list li { font-size: 13px; margin-bottom: 5px; line-height: 1.5; }
+  .print-obs { font-size: 13px; white-space: pre-wrap; line-height: 1.7; }
+  .print-foto-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+  .print-foto-grid img { width: 170px; height: 128px; object-fit: cover; border: 1px solid #ccc; }
+  .print-signature { margin-top: 44px; padding-top: 16px; border-top: 1px solid #ccc; font-size: 13px; color: #333; }
+  @media print {
+    .no-print { display: none !important; }
+    .header { display: none !important; }
+    .main > *:not(.print-wrapper) { display: none !important; }
+    .print-doc { border: none; box-shadow: none; padding: 20px; max-width: 100%; }
+    body { background: #fff !important; }
+    .preview-toolbar { display: none !important; }
+  }
+  @media (max-width: 600px) {
+    .main { padding: 16px; }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .stats-bar { grid-template-columns: 1fr; }
+    .header { padding: 0 16px; }
+    .print-doc { padding: 20px; }
+  }
+`;
+
+const CLIMAS = ["Sol","Parcialmente Nublado","Nublado","Garoa","Chuva Fraca","Chuva Forte"];
+
+function climaBadge(c) {
+  if (!c) return "badge-nublado";
+  const l = c.toLowerCase();
+  if (l === "sol") return "badge-sol";
+  if (l.includes("parcial")) return "badge-parcial";
+  if (l.includes("garoa")) return "badge-garoa";
+  if (l.includes("chuva")) return "badge-chuva";
+  return "badge-nublado";
+}
+
+function fmtDate(d) {
+  if (!d) return "";
+  const [y, m, dia] = d.split("-");
+  return `${dia}/${m}/${y}`;
+}
+
+function emptyForm() {
+  return {
+    obra: "", data: new Date().toISOString().slice(0, 10), clima: "Sol",
+    servicos: [""], totalFuncionarios: "", responsavel: "",
+    terceiros: [], observacoes: "", fotos: [],
+  };
+}
+
+function App() {
+  const [view, setView] = useState("list");
+  const [reports, setReports] = useState([]);
+  const [form, setForm] = useState(emptyForm());
+  const [editId, setEditId] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const fileRef = useRef();
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("hilton-obra-v1");
+      if (raw) setReports(JSON.parse(raw));
+    } catch {}
+  }, []);
+
+  const persist = (list) => {
+    setReports(list);
+    try { localStorage.setItem("hilton-obra-v1", JSON.stringify(list)); } catch {}
+  };
+
+  const openNew = () => { setForm(emptyForm()); setEditId(null); setView("form"); };
+  const openEdit = (r) => { setForm({ ...r }); setEditId(r.id); setView("form"); };
+  const openPreview = (r) => { setPreview(r); setView("preview"); };
+  const back = () => setView("list");
+
+  const handleDelete = (id) => {
+    if (!window.confirm("Excluir este relatório?")) return;
+    persist(reports.filter(r => r.id !== id));
+  };
+
+  const handleSave = () => {
+    if (!form.obra.trim()) { alert("Informe o nome da obra."); return; }
+    if (!form.data) { alert("Informe a data."); return; }
+    const updated = editId
+      ? reports.map(r => r.id === editId ? { ...form, id: editId } : r)
+      : [{ ...form, id: String(Date.now()) }, ...reports];
+    persist(updated);
+    setView("list");
+  };
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const setServico = (i, v) => { const s = [...form.servicos]; s[i] = v; set("servicos", s); };
+  const addServico = () => set("servicos", [...form.servicos, ""]);
+  const removeServico = (i) => set("servicos", form.servicos.filter((_, j) => j !== i));
+  const addTerceiro = () => set("terceiros", [...form.terceiros, { nome: "", empresa: "", funcao: "" }]);
+  const setTerceiro = (i, k, v) => { const t = [...form.terceiros]; t[i] = { ...t[i], [k]: v }; set("terceiros", t); };
+  const removeTerceiro = (i) => set("terceiros", form.terceiros.filter((_, j) => j !== i));
+
+  const handleFotos = (e) => {
+    [...e.target.files].forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => set("fotos", [...form.fotos, { name: file.name, data: ev.target.result }]);
+      reader.readAsDataURL(file);
+    });
+    e.target.value = "";
+  };
+  const removeFoto = (i) => set("fotos", form.fotos.filter((_, j) => j !== i));
+
+  const totalFunc = reports.reduce((s, r) => s + (parseInt(r.totalFuncionarios) || 0), 0);
+  const totalServ = reports.reduce((s, r) => s + r.servicos.filter(v => v.trim()).length, 0);
+
+  return (
+    <>
+      <style>{STYLE}</style>
+      <div className="app">
+        <header className="header no-print">
+          <div className="header-brand">
+            <span className="header-logo">HILTON</span>
+            <span className="header-sep">|</span>
+            <span className="header-sub">Relatório de Obra Diária</span>
+          </div>
+          <div className="header-actions">
+            {view !== "list" && <button className="btn btn-outline btn-sm" onClick={back}>← Voltar</button>}
+            {view === "list" && <button className="btn btn-gold btn-sm" onClick={openNew}>+ Novo Relatório</button>}
+            {view === "preview" && <button className="btn btn-outline btn-sm" onClick={() => window.print()}>Imprimir / PDF</button>}
+          </div>
+        </header>
+
+        <main className="main">
+          {view === "list" && (
+            <>
+              <div className="stats-bar">
+                <div className="stat-item"><div className="stat-value">{reports.length}</div><div className="stat-label">Relatórios</div></div>
+                <div className="stat-item"><div className="stat-value">{totalFunc}</div><div className="stat-label">Func. Registrados</div></div>
+                <div className="stat-item"><div className="stat-value">{totalServ}</div><div className="stat-label">Serviços Registrados</div></div>
+              </div>
+              <div className="panel">
+                <div className="panel-header">
+                  <span className="panel-title">Relatórios de Obra</span>
+                  <span style={{fontSize:"10px",color:"var(--text-dim)",letterSpacing:"2px"}}>{reports.length} registro{reports.length !== 1 ? "s" : ""}</span>
+                </div>
+                {reports.length === 0 ? (
+                  <div className="empty-state">
+                    <div className="empty-icon">📋</div>
+                    <div className="empty-text">Nenhum relatório registrado</div>
+                    <button className="btn btn-gold btn-sm" onClick={openNew}>Criar Primeiro Relatório</button>
+                  </div>
+                ) : (
+                  <div className="reports-list">
+                    {reports.map(r => (
+                      <div key={r.id} className="report-row" onClick={() => openPreview(r)}>
+                        <div className="report-row-info">
+                          <div className="report-row-name">{r.obra}</div>
+                          <div className="report-row-meta">
+                            {fmtDate(r.data)} · {r.totalFuncionarios || "—"} funcionários · {r.servicos.filter(s => s.trim()).length} serviço{r.servicos.filter(s => s.trim()).length !== 1 ? "s" : ""}
+                            {r.fotos.length > 0 && <> · {r.fotos.length} foto{r.fotos.length !== 1 ? "s" : ""}</>}
+                          </div>
+                        </div>
+                        <div className="report-row-right">
+                          <span className={`badge ${climaBadge(r.clima)}`}>{r.clima}</span>
+                          <div style={{display:"flex",gap:"2px"}} onClick={e => e.stopPropagation()}>
+                            <button className="btn-icon" onClick={() => openEdit(r)}>✏️</button>
+                            <button className="btn-icon" onClick={() => handleDelete(r.id)}>🗑️</button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {view === "form" && (
+            <div className="panel">
+              <div className="panel-header">
+                <span className="panel-title">{editId ? "Editar Relatório" : "Novo Relatório de Obra"}</span>
+              </div>
+              <div className="panel-body">
+                <div className="grid-2">
+                  <div className="field">
+                    <label className="label">Nome da Obra</label>
+                    <input className="input" value={form.obra} onChange={e => set("obra", e.target.value)} placeholder="Ex: Hilton Garden Inn" />
+                  </div>
+                  <div className="field">
+                    <label className="label">Data</label>
+                    <input className="input" type="date" value={form.data} onChange={e => set("data", e.target.value)} />
+                  </div>
+                </div>
+                <div className="grid-3">
+                  <div className="field">
+                    <label className="label">Condições Climáticas</label>
+                    <select className="select" value={form.clima} onChange={e => set("clima", e.target.value)}>
+                      {CLIMAS.map(c => <option key={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label className="label">Total de Funcionários</label>
+                    <input className="input" type="number" min="0" value={form.totalFuncionarios} onChange={e => set("totalFuncionarios", e.target.value)} placeholder="Ex: 13" />
+                  </div>
+                  <div className="field">
+                    <label className="label">Responsável</label>
+                    <input className="input" value={form.responsavel} onChange={e => set("responsavel", e.target.value)} placeholder="Ex: Eng. João Silva" />
+                  </div>
+                </div>
+
+                <div className="section-divider">Serviços Realizados</div>
+                {form.servicos.map((s, i) => (
+                  <div key={i} className="list-item">
+                    <input className="input" value={s} onChange={e => setServico(i, e.target.value)} placeholder={`Serviço ${i + 1}`} />
+                    {form.servicos.length > 1 && <button className="btn btn-danger btn-sm" onClick={() => removeServico(i)}>✕</button>}
+                  </div>
+                ))}
+                <button className="add-btn" onClick={addServico}>+ Adicionar Serviço</button>
+
+                <div className="section-divider">Funcionários Terceiros</div>
+                {form.terceiros.map((t, i) => (
+                  <div key={i} className="terceiro-row">
+                    <div className="grid-3">
+                      <div className="field"><label className="label">Nome</label><input className="input" value={t.nome} onChange={e => setTerceiro(i,"nome",e.target.value)} placeholder="Nome do funcionário" /></div>
+                      <div className="field"><label className="label">Empresa</label><input className="input" value={t.empresa} onChange={e => setTerceiro(i,"empresa",e.target.value)} placeholder="Empresa / Prestadora" /></div>
+                      <div className="field"><label className="label">Função</label><input className="input" value={t.funcao} onChange={e => setTerceiro(i,"funcao",e.target.value)} placeholder="Ex: Eletricista" /></div>
+                    </div>
+                    <div style={{display:"flex",justifyContent:"flex-end"}}>
+                      <button className="btn btn-danger btn-sm" onClick={() => removeTerceiro(i)}>Remover</button>
+                    </div>
+                  </div>
+                ))}
+                <button className="add-btn" onClick={addTerceiro}>+ Adicionar Terceiro</button>
+
+                <div className="section-divider">Observações</div>
+                <div className="field">
+                  <textarea className="textarea" rows={5} value={form.observacoes} onChange={e => set("observacoes", e.target.value)} placeholder="Registre observações importantes do dia..." />
+                </div>
+
+                <div className="section-divider">Fotos / Anexos</div>
+                <div className="foto-grid">
+                  {form.fotos.map((f, i) => (
+                    <div key={i} className="foto-item">
+                      <img src={f.data} alt={f.name} />
+                      <button className="foto-remove" onClick={() => removeFoto(i)}>✕</button>
+                    </div>
+                  ))}
+                  <div className="foto-upload-btn" onClick={() => fileRef.current.click()}>+</div>
+                </div>
+                <input ref={fileRef} type="file" accept="image/*" multiple style={{display:"none"}} onChange={handleFotos} />
+
+                <div className="form-actions">
+                  <button className="btn btn-outline" onClick={back}>Cancelar</button>
+                  <button className="btn btn-gold" onClick={handleSave}>Salvar Relatório</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {view === "preview" && preview && (
+            <div className="print-wrapper">
+              <div className="preview-toolbar no-print">
+                <button className="btn btn-outline btn-sm" onClick={() => openEdit(preview)}>✏️ Editar</button>
+                <button className="btn btn-gold btn-sm" onClick={() => window.print()}>Imprimir / Salvar PDF</button>
+              </div>
+              <div className="print-doc">
+                <div className="print-doc-header">
+                  <div className="print-doc-obra">{preview.obra}</div>
+                  <div className="print-doc-titulo">Relatório de Obra</div>
+                </div>
+                <hr className="print-doc-hr" />
+                <div className="print-field"><b>Data:</b> {fmtDate(preview.data)}</div>
+                <div className="print-field"><b>Condições climáticas:</b> {preview.clima}</div>
+                <hr className="print-doc-hr" />
+                {preview.servicos.filter(s => s.trim()).length > 0 && (
+                  <div className="print-section">
+                    <div className="print-section-title">Serviços Realizados:</div>
+                    <ul className="print-list">{preview.servicos.filter(s => s.trim()).map((s, i) => <li key={i}>{s}</li>)}</ul>
+                  </div>
+                )}
+                <div className="print-section">
+                  <div className="print-section-title">Funcionários na Obra:</div>
+                  {preview.totalFuncionarios && <p className="print-field">{preview.totalFuncionarios} Funcionários</p>}
+                  {preview.responsavel && <p className="print-field"><b>Responsável:</b> {preview.responsavel}</p>}
+                  {preview.terceiros.filter(t => t.nome.trim()).length > 0 && (
+                    <>
+                      <p className="print-field" style={{marginTop:8}}><b>Terceiros:</b></p>
+                      <ul className="print-list">
+                        {preview.terceiros.filter(t => t.nome.trim()).map((t, i) => (
+                          <li key={i}>{t.nome}{t.empresa ? ` (${t.empresa})` : ""}{t.funcao ? ` – ${t.funcao}` : ""}</li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </div>
+                {preview.observacoes?.trim() && (
+                  <div className="print-section">
+                    <div className="print-section-title">Observação:</div>
+                    <p className="print-obs">{preview.observacoes}</p>
+                  </div>
+                )}
+                {preview.fotos.length > 0 && (
+                  <div className="print-section">
+                    <div className="print-section-title">Imagens em Anexo:</div>
+                    <div className="print-foto-grid">{preview.fotos.map((f, i) => <img key={i} src={f.data} alt={f.name} />)}</div>
+                  </div>
+                )}
+                <div className="print-signature">
+                  <p><b>Responsável:</b> {preview.responsavel || "___________________________"}</p>
+                  <p style={{marginTop:32,color:"#999",fontSize:11}}>Relatório gerado em {new Date().toLocaleDateString("pt-BR")}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
+    </>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+  </script>
+</body>
+</html>
